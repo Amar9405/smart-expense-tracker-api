@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: "#38bdf8"
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-slate-900 text-white">
+
+  <div class="max-w-6xl mx-auto p-6">
+
+    <h1 class="text-3xl font-bold mb-2">
+      Expense Tracker Dashboard
+    </h1>
+
+    <p class="text-slate-400 mb-6">
+      Track your daily expenses.
+    </p>
+
+    <!-- Flash Messages -->
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="mb-4 p-3 rounded-lg
+            {% if category == 'success' %}
+              bg-green-600
+            {% else %}
+              bg-red-600
+            {% endif %}
+            text-white">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="grid lg:grid-cols-3 gap-6 mb-8">
+      <div class="bg-slate-800 rounded-xl p-5">
+        <p class="text-slate-400 text-sm">Total Expense</p>
+        <p class="text-2xl font-semibold mt-1">₹{{ "%.2f"|format(total_expense) }}</p>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-5">
+        <p class="text-slate-400 text-sm">Today's Expense</p>
+        <p class="text-2xl font-semibold mt-1">₹{{ "%.2f"|format(today_expense) }}</p>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-5">
+        <p class="text-slate-400 text-sm">This Month</p>
+        <p class="text-2xl font-semibold mt-1">₹{{ "%.2f"|format(month_expense) }}</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+
+      <!-- Filter Section -->
+      <div class="lg:col-span-2 bg-slate-800 rounded-xl p-5">
+
+        <h2 class="text-xl font-semibold mb-4">
+          Filters
+        </h2>
+
+        <form method="GET" action="{{ url_for('index') }}" class="grid md:grid-cols-5 gap-3">
+
+          <input type="date" name="start_date" value="{{ selected_start_date or '' }}"
+            class="bg-slate-700 rounded-lg p-2">
+
+          <input type="date" name="end_date" value="{{ selected_end_date or '' }}" class="bg-slate-700 rounded-lg p-2">
+
+          <select name="category" class="bg-slate-700 rounded-lg p-2 md:col-span-2">
+            <option value="">All</option>
+            <option value="Food" {% if selected_category=='Food' %}selected{% endif %}>Food</option>
+            <option value="Transport" {% if selected_category=='Transport' %}selected{% endif %}>Transport</option>
+            <option value="Rent" {% if selected_category=='Rent' %}selected{% endif %}>Rent</option>
+            <option value="Utilities" {% if selected_category=='Utilities' %}selected{% endif %}>Utilities</option>
+            <option value="Shopping" {% if selected_category=='Shopping' %}selected{% endif %}>Shopping</option>
+            <option value="Entertainment" {% if selected_category=='Entertainment' %}selected{% endif %}>Entertainment
+            </option>
+          </select>
+
+          <button type="submit" class="bg-sky-500 rounded-lg">
+            Apply
+          </button>
+
+        </form>
+
+      </div>
+
+      <!-- Add Expense -->
+      <div class="bg-slate-800 rounded-xl p-5">
+
+        <h2 class="text-xl font-semibold mb-4">
+          Add Expense
+        </h2>
+
+        <form action="{{ url_for('add') }}" method="POST" class="space-y-4">
+
+          <div>
+            <label>Description</label>
+
+            <input type="text" name="description" placeholder="Groceries" required
+              class="w-full mt-1 bg-slate-700 rounded-lg p-2">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+
+            <div>
+              <label>Amount</label>
+
+              <input type="number" name="amount" step="0.01" required class="w-full mt-1 bg-slate-700 rounded-lg p-2">
+            </div>
+
+            <div>
+              <label>Date</label>
+
+              <input type="date" name="date" required class="w-full mt-1 bg-slate-700 rounded-lg p-2">
+            </div>
+
+          </div>
+
+          <div>
+
+            <label>Category</label>
+
+            <select name="category" required class="w-full mt-1 bg-slate-700 rounded-lg p-2">
+
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Rent">Rent</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Entertainment">Entertainment</option>
+
+            </select>
+
+          </div>
+
+          <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 rounded-lg p-2 font-semibold">
+
+            Add Expense
+
+          </button>
+
+        </form>
+
+      </div>
+
+    </div>
+
+    <div class="bg-slate-800 rounded-xl mt-8 p-5">
+      <h2 class="text-xl font-semibold mb-4">Category Summary</h2>
+      {% if category_totals %}
+      <div class="space-y-3">
+        {% for category, total in category_totals.items() %}
+        <div class="flex justify-between items-center bg-slate-700 rounded-lg px-3 py-2">
+          <span>{{ category }}</span>
+          <span class="font-semibold">₹{{ "%.2f"|format(total) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-slate-400">No category data yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Expenses Table -->
+
+    <div class="bg-slate-800 rounded-xl mt-8 overflow-hidden">
+
+      <div class="p-4 border-b border-slate-700">
+
+        <h2 class="text-xl font-semibold">
+          Expenses
+        </h2>
+
+      </div>
+
+      <table class="w-full">
+
+        <thead class="bg-slate-700">
+
+          <tr>
+
+            <th class="text-left p-3">Date</th>
+            <th class="text-left p-3">Description</th>
+            <th class="text-left p-3">Category</th>
+            <th class="text-right p-3">Amount</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {% if expenses %}
+
+          {% for expense in expenses %}
+
+          <tr class="border-b border-slate-700">
+
+            <td class="p-3">{{ expense.date }}</td>
+
+            <td class="p-3">{{ expense.description }}</td>
+
+            <td class="p-3">{{ expense.category }}</td>
+
+            <td class="p-3 text-right">
+              ₹{{ "%.2f"|format(expense.amount) }}
+            </td>
+            <td class="p-3 text-right">
+              <div class="flex justify-end gap-2">
+                <a href="{{ url_for('edit', expense_id=expense.id) }}"
+                  class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1 rounded-lg text-sm">
+                  Edit
+                </a>
+                <form action="{{ url_for('delete', expense_id=expense.id) }}" method="POST"
+                  onsubmit="return confirm('Delete this expense?');">
+                  <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm">
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </td>
+
+          </tr>
+
+          {% endfor %}
+
+          {% else %}
+
+          <tr>
+
+            <td colspan="4" class="text-center text-slate-400 py-8">
+              No expenses yet.
+            </td>
+
+          </tr>
+
+          {% endif %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <!-- Charts -->
+
+    <div class="grid lg:grid-cols-2 gap-6 mt-8">
+
+      <div class="bg-slate-800 rounded-xl p-5">
+
+        <h2 class="font-semibold mb-3">
+          Category Wise
+        </h2>
+
+        <canvas id="categoryChart"></canvas>
+
+      </div>
+
+      <div class="bg-slate-800 rounded-xl p-5">
+
+        <h2 class="font-semibold mb-3">
+          Daily Spending
+        </h2>
+
+        <canvas id="dailyChart"></canvas>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const categoryLabels = {{ category_totals.keys() | list | tojson }};
+    const categoryValues = {{ category_totals.values() | list | tojson }};
+
+    if (categoryLabels.length > 0 && categoryValues.some(value => value > 0)) {
+      const ctx = document.getElementById('categoryChart');
+      if (ctx) {
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: categoryLabels,
+            datasets: [{
+              data: categoryValues,
+              backgroundColor: ['#38bdf8', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: { color: '#f8fafc' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    const dailyLabels = {{ daily_totals.keys() | list | tojson }};
+    const dailyValues = {{ daily_totals.values() | list | tojson }};
+
+    if (dailyLabels.length > 0 && dailyValues.some(value => value > 0)) {
+      const dailyCtx = document.getElementById('dailyChart');
+      if (dailyCtx) {
+        new Chart(dailyCtx, {
+          type: 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: [{
+              label: 'Daily Spending',
+              data: dailyValues,
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: { color: '#f8fafc' }
+              }
+            },
+            scales: {
+              x: { ticks: { color: '#f8fafc' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+              y: { ticks: { color: '#f8fafc' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
+          }
+        });
+      }
+    }
+  </script>
+</body>
+
+</html>
