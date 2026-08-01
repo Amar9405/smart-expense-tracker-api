@@ -1,6 +1,5 @@
 # Smart Expense Tracker API
 
-**Live Demo:** `<DEPLOYMENT_LINK>`
 
 A REST API built with **Python**, **Flask**, and **Flask-SQLAlchemy** for managing personal expenses. The API allows users to add, view, filter, calculate totals, and delete expenses.
 
