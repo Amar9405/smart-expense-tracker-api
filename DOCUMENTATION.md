@@ -1,4 +1,4 @@
-# SpendIQ - Complete Technical Documentation
+# SpendIQ - Complete Documentation
 
 ## Project Overview
 
